@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 func home(writer http.ResponseWriter, request *http.Request){
@@ -15,7 +17,12 @@ func home(writer http.ResponseWriter, request *http.Request){
 
 //Обработчик отбражения заметки
 func showSnippet(writer http.ResponseWriter, request *http.Request) {
-	writer.Write([]byte("Отображение заметки"))
+	id, err := strconv.Atoi(request.URL.Query().Get("id"))
+	if err != nil || id < 1 {
+		http.NotFound(writer, request)
+		return
+	}
+	fmt.Fprintf(writer, "Отборажение выбранной заметки с ID %id...", id)
 }
 
 //Обработчик создания заметки
@@ -27,7 +34,7 @@ func createSnippet(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, "Метод запрещен", 405)
 		return
 	}
-	writer.Write([]byte("Создания заметки"))
+ 		writer.Write([]byte("Создания заметки"))
 }
 
 func main()  {
