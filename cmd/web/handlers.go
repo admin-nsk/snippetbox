@@ -9,7 +9,7 @@ import (
 
 func (app *application) home(writer http.ResponseWriter, request *http.Request)  {
 	if request.URL.Path != "/" {
-		http.NotFound(writer, request)
+		app.notFound(writer)
 		return
 	}
 	files := []string{
@@ -20,13 +20,13 @@ func (app *application) home(writer http.ResponseWriter, request *http.Request) 
 
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		app.errorLog.Print(err.Error())
+		app.ServerError(writer, err)
 		http.Error(writer, "Internal server error", 500)
 		return
 	}
 	err = ts.Execute(writer, nil)
 	if err != nil {
-		app.errorLog.Print(err.Error())
+		app.ServerError(writer, err)
 		http.Error(writer, "Internal server error", 500)
 		return
 	}
@@ -44,7 +44,7 @@ func (app *application) showSnippet(writer http.ResponseWriter, request *http.Re
 func (app *application) createSnippet(writer http.ResponseWriter, request *http.Request)  {
 	if request.Method != http.MethodPost {
 		writer.Header().Set("Allow", http.MethodPost)
-		http.Error(writer, "Метод не дозволен", 405)
+		app.clientError(writer, http.StatusMethodNotAllowed)
 		return
 	}
 	writer.Write([]byte("Создание заметки"))
