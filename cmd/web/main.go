@@ -3,20 +3,21 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-
 	"snippetbox/pkg/models/mysql"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 type application struct {
-	infoLog *log.Logger
-	errorLog *log.Logger
-	snippets *mysql.SnippetModel
+	infoLog       *log.Logger
+	errorLog      *log.Logger
+	snippets      *mysql.SnippetModel
+	templateCache map[string]*template.Template
 }
 
 func main() {
@@ -34,16 +35,22 @@ func main() {
 
 	defer db.Close()
 
+	templateCache, err := newTemplateCache("ui\\html\\")
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	app := &application{
-		errorLog: errorLog,
-		infoLog: infoLog,
-		snippets: &mysql.SnippetModel{DB: db},
+		errorLog:      errorLog,
+		infoLog:       infoLog,
+		snippets:      &mysql.SnippetModel{DB: db},
+		templateCache: templateCache,
 	}
 
 	srv := &http.Server{
-		Addr: *addr,
+		Addr:     *addr,
 		ErrorLog: errorLog,
-		Handler: app.routes(),
+		Handler:  app.routes(),
 	}
 
 	infoLog.Printf("Запуск сервера на http: %s\n", *addr)
@@ -51,7 +58,7 @@ func main() {
 	errorLog.Fatal(err)
 }
 
-func openDB(dsn string) (*sql.DB, error){
+func openDB(dsn string) (*sql.DB, error) {
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		return nil, err
@@ -66,7 +73,7 @@ type neuteredFileSystem struct {
 	fs http.FileSystem
 }
 
-func (nfs neuteredFileSystem ) Open(path string) (http.File, error) {
+func (nfs neuteredFileSystem) Open(path string) (http.File, error) {
 	f, err := nfs.fs.Open(path)
 	if err != nil {
 		return nil, err

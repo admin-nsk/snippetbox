@@ -1,47 +1,48 @@
 package main
 
 import (
+	"errors"
 	"fmt"
-	"html/template"
 	"net/http"
+	"snippetbox/pkg/models"
 	"strconv"
 )
 
-func (app *application) home(writer http.ResponseWriter, request *http.Request)  {
+func (app *application) home(writer http.ResponseWriter, request *http.Request) {
 	if request.URL.Path != "/" {
 		app.notFound(writer)
 		return
 	}
-	files := []string{
-		"ui/html/home.page.tmpl",
-		"ui/html/base.layout.tmpl",
-		"ui/html/footer.partial.tmpl",
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.ServerError(writer, err)
+		return
 	}
 
-	ts, err := template.ParseFiles(files...)
-	if err != nil {
-		app.ServerError(writer, err)
-		http.Error(writer, "Internal server error", 500)
-		return
-	}
-	err = ts.Execute(writer, nil)
-	if err != nil {
-		app.ServerError(writer, err)
-		http.Error(writer, "Internal server error", 500)
-		return
-	}
+	app.render(writer, request, "home.page.tmpl", &templateData{Snippets: s})
 }
 
-func (app *application) showSnippet(writer http.ResponseWriter, request *http.Request)  {
+func (app *application) showSnippet(writer http.ResponseWriter, request *http.Request) {
 	id, err := strconv.Atoi(request.URL.Query().Get("id"))
 	if err != nil || id < 1 {
-		http.NotFound(writer, request)
+		app.notFound(writer)
 		return
 	}
-	fmt.Fprintf(writer, "Отражение определенной заметки с ID %d...", id)
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(writer)
+		} else {
+			app.ServerError(writer, err)
+		}
+		return
+	}
+	app.render(writer, request, "show.page.tmpl", &templateData{Snippet: s})
+
 }
 
-func (app *application) createSnippet(writer http.ResponseWriter, request *http.Request)  {
+func (app *application) createSnippet(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		writer.Header().Set("Allow", http.MethodPost)
 		app.clientError(writer, http.StatusMethodNotAllowed)
@@ -60,4 +61,3 @@ func (app *application) createSnippet(writer http.ResponseWriter, request *http.
 
 	http.Redirect(writer, request, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
 }
-
